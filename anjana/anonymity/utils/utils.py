@@ -73,9 +73,20 @@ def apply_hierarchy(
     if not isinstance(hierarchies[level - 1], pd.Series):
         hierarchies[level - 1] = pd.Series(hierarchies[level - 1])
 
+    is_float = np.issubdtype(hierarchies[level - 1].values.dtype, np.floating)
+
     pos = []
     for elem in data:
-        pos.append(np.where(hierarchies[level - 1].values == elem)[0][0])
+        if is_float:
+            matches = np.where(np.isclose(hierarchies[level - 1].values, elem))[0]
+        else:
+            matches = np.where(hierarchies[level - 1].values == elem)[0]
+
+        if len(matches) == 0:
+            raise ValueError(f"Element {elem} not found in hierarchy level {level - 1}")
+
+        pos.append(matches[0])
+
     data_anon = hierarchies[level].values[pos]
     return data_anon
 
@@ -125,29 +136,31 @@ def check_gen_level(
     quasi_ident: typing.Union[typing.List, np.ndarray],
     hierarchies: dict,
 ) -> dict:
-    """Check the generalization level for each quasi-identifier.
-
-    :param data: data under study.
-    :type data: pandas dataframe
-
-    :param quasi_ident: list with the name of the columns of the dataframe
-        that are quasi-identifiers.
-    :type quasi_ident: list of strings
-
-    :param hierarchies: hierarchies for generalizing the QI.
-    :type hierarchies: dictionary containing one dictionary for QI
-        with the hierarchies and the levels
-
-    :return: level of generalization applied to each QI.
-    :rtype: dict
-    """
     gen_level = {}
+
     for qi in quasi_ident:
-        if qi in hierarchies.keys():
-            for level in hierarchies[qi].keys():
-                hierarchy_level = set(hierarchies[qi][level])
-                if set(data[qi].values).issubset(hierarchy_level):
-                    gen_level[qi] = level
+        if qi not in hierarchies:
+            continue
+
+        current_data = data[qi].values
+        unique_data = np.unique(current_data)
+
+        is_float = np.issubdtype(unique_data.dtype, np.floating)
+
+        for level in hierarchies[qi].keys():
+            hier_vals = np.array(hierarchies[qi][level])
+
+            if is_float:
+                matches_matrix = np.isclose(unique_data[:, None], hier_vals[None, :])
+                point_exists = np.any(matches_matrix, axis=1)
+                is_subset = np.all(point_exists)
+
+            else:
+                is_subset = set(unique_data).issubset(hier_vals)
+
+            if is_subset:
+                gen_level[qi] = level
+                break
 
     return gen_level
 
