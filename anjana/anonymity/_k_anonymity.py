@@ -75,7 +75,7 @@ def alpha_k_anonymity(
     alpha: typing.Union[float, int],
     supp_level: typing.Union[float, int],
     hierarchies: dict,
-) -> pd.DataFrame:
+) -> typing.Tuple[pd.DataFrame, dict]:
     """Anonymize a dataset using (alpha,k)-anonymity.
 
     :param data: data under study.
@@ -106,8 +106,8 @@ def alpha_k_anonymity(
     :type hierarchies: dictionary containing one dictionary for QI
         with the hierarchies and the levels
 
-    :return: anonymized data.
-    :rtype: pandas dataframe
+    :return: anonymized data and generalization levels applied.
+    :rtype: tuple of (pandas dataframe, dict)
     """
     data_kanon, supp_records, gen_level = k_anonymity_inner(
         data, ident, quasi_ident, k, supp_level, hierarchies
@@ -126,7 +126,7 @@ def alpha_k_anonymity(
     while alpha_real > alpha:
         if len(quasi_ident_gen) == 0:
             print(f"(alpha,k)-anonymity cannot be achieved for alpha={alpha}")
-            return pd.DataFrame()
+            return pd.DataFrame(), gen_level
 
         qi_gen = quasi_ident_gen[
             np.argmax([len(np.unique(data_kanon[qi])) for qi in quasi_ident_gen])
@@ -147,7 +147,7 @@ def alpha_k_anonymity(
         )
 
         if alpha_real <= alpha:
-            return data_kanon
+            return data_kanon, gen_level
 
         equiv_class = pycanon.anonymity.utils.aux_anonymity.get_equiv_class(
             data_kanon, quasi_ident
@@ -169,7 +169,7 @@ def alpha_k_anonymity(
 
         if alpha > min(alpha_ec):
             if max(alpha_ec) <= alpha:
-                return data_kanon
+                return data_kanon, gen_level
 
             data_ec = pd.DataFrame(
                 {"equiv_class": equiv_class, "alpha": alpha_ec, "k": k_ec}
@@ -188,9 +188,9 @@ def alpha_k_anonymity(
                     anonim_data, quasi_ident, [sens_att]
                 )
                 if alpha_supp <= alpha:
-                    return anonim_data
+                    return anonim_data, gen_level
 
-    return data_kanon
+    return data_kanon, gen_level
 
 
 def k_anonymity_inner(

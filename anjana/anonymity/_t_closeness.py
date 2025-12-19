@@ -34,7 +34,7 @@ def t_closeness(
     t: typing.Union[float, int],
     supp_level: typing.Union[float, int],
     hierarchies: dict,
-) -> pd.DataFrame:
+) -> typing.Tuple[pd.DataFrame, dict]:
     """Anonymize a dataset using t-closeness and k-anonymity.
 
     :param data: data under study.
@@ -65,8 +65,8 @@ def t_closeness(
     :type hierarchies: dictionary containing one dictionary for QI
         with the hierarchies and the levels
 
-    :return: anonymized data.
-    :rtype: pandas dataframe
+    :return: anonymized data and generalization levels applied.
+    :rtype: tuple of (pandas dataframe, dict)
     """
     if t < 0 or t > 1:
         raise ValueError(f"Invalid value of t for t-closeness, t={t}")
@@ -80,12 +80,12 @@ def t_closeness(
 
     if t_real <= t:
         print(f"The data verifies t-closeness with t={t_real}")
-        return data_kanon
+        return data_kanon, gen_level
 
     while t_real > t:
         if len(quasi_ident_gen) == 0:
             print(f"The anonymization cannot be carried out for the given value t={t}")
-            return pd.DataFrame()
+            return pd.DataFrame(), gen_level
 
         qi_gen = quasi_ident_gen[
             np.argmax([len(np.unique(data_kanon[qi])) for qi in quasi_ident_gen])
@@ -103,6 +103,6 @@ def t_closeness(
 
         t_real = pycanon.anonymity.t_closeness(data_kanon, quasi_ident, [sens_att])
         if t_real <= t:
-            return data_kanon
+            return data_kanon, gen_level
 
-    return data_kanon
+    return data_kanon, gen_level

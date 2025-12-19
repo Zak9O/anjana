@@ -34,7 +34,7 @@ def l_diversity(
     l_div: int,
     supp_level: typing.Union[float, int],
     hierarchies: dict,
-) -> pd.DataFrame:
+) -> typing.Tuple[pd.DataFrame, dict]:
     """Anonymize a dataset using l-diversity.
 
     :param data: data under study.
@@ -65,13 +65,13 @@ def l_diversity(
     :type hierarchies: dictionary containing one dictionary for QI
         with the hierarchies and the levels
 
-    :return: anonymized data.
-    :rtype: pandas dataframe
+    :return: anonymized data and generalization levels applied.
+    :rtype: tuple of (pandas dataframe, dict)
     """
-    data_anon, _ = _l_diversity_inner(
+    data_anon, _, gen_level = _l_diversity_inner(
         data, ident, quasi_ident, sens_att, k, l_div, supp_level, hierarchies
     )
-    return data_anon
+    return data_anon, gen_level
 
 
 @beartype()
@@ -337,6 +337,9 @@ def _l_diversity_inner(
 
     :return: number of records suppressed.
     :rtype: int
+
+    :return: generalization levels applied.
+    :rtype: dict
     """
     if l_div < 1:
         raise ValueError(f"Invalid value of l for l-diversity l={l_div}")
@@ -353,7 +356,7 @@ def _l_diversity_inner(
 
     if l_real >= l_div:
         print(f"The data verifies l-diversity with l={l_real}")
-        return data_kanon, supp_records_k
+        return data_kanon, supp_records_k, gen_level
 
     while l_real < l_div:
         equiv_class = pycanon.anonymity.utils.aux_anonymity.get_equiv_class(
@@ -383,11 +386,11 @@ def _l_diversity_inner(
                 )
                 supp_records_l = supp_records_k + records_sup
                 if l_supp >= l_div:
-                    return anonim_data, supp_records_l
+                    return anonim_data, supp_records_l, gen_level
 
         if len(quasi_ident_gen) == 0:
             print(f"l-diversity cannot be achieved for l={l_div}")
-            return pd.DataFrame(), supp_records_k
+            return pd.DataFrame(), supp_records_k, gen_level
 
         qi_gen = quasi_ident_gen[
             np.argmax([len(np.unique(data_kanon[qi])) for qi in quasi_ident_gen])
@@ -405,6 +408,6 @@ def _l_diversity_inner(
 
         l_real = pycanon.anonymity.l_diversity(data_kanon, quasi_ident, [sens_att])
         if l_real >= l_div:
-            return data_kanon, supp_records_k
+            return data_kanon, supp_records_k, gen_level
 
-    return data_kanon, supp_records_k
+    return data_kanon, supp_records_k, gen_level
